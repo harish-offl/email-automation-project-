@@ -39,9 +39,53 @@ Leads Database  /  Campaign Logs  /  Analytics
 ## 🚀 Implementation Plan
 
 1. **Project scaffolding**
-   - Initialize Python project with `venv`, dependencies (`fastapi`, `uvicorn`, `pydantic`, `requests` for Ollama, etc.).
+   - Initialize Python project with `venv`, dependencies (`fastapi`, `uvicorn`, `pydantic`, `sqlalchemy`, `requests` for Ollama, etc.).
+   - Create `app/` package containing API, models and database helpers.
    - Create frontend repo (e.g. `frontend/`) using Next.js `create-next-app`.
    - Add Dockerfiles and `docker-compose.yml` for local development.
+
+---
+
+## 📡 Backend API (FastAPI)
+
+The backend exposes simple endpoints for lead management and campaign control:
+
+| Method | Path             | Description                                  |
+|--------|------------------|----------------------------------------------|
+| POST   | `/leads/`         | Create a single lead (JSON body).            |
+| POST   | `/leads/upload`   | Upload CSV file (`email,name,niche,industry,...`).|
+| GET    | `/leads/`         | List stored leads (pagination).              |
+| POST   | `/campaign/start`| Start a campaign; emails are generated & sent asynchronously. |
+
+All routes use a SQLite database by default (`leads.db`), configurable via `DATABASE_URL` env var. Models and schema are defined in `app/models.py` and `app/schemas.py`.
+
+You can test the API with curl or any HTTP client, e.g.:
+
+```bash
+curl -X POST "http://localhost:8000/leads/" -H "Content-Type: application/json" \
+     -d '{"email":"test@example.com","name":"Alice","niche":"e‑commerce","industry":"retail"}'
+```
+
+Alternatively, the root-level `main.py` utility supports two modes:
+
+- `python main.py` runs the campaign using `leads.csv` or stored database leads.
+- `python main.py --serve` launches the FastAPI server (same as the uvicorn command above).
+
+To start the server:
+
+```bash
+uvicorn app.main:app --reload
+```
+
+The documentation is available at `http://localhost:8000/docs` once the server is running.
+
+### Simple Frontend
+
+A lightweight React-based UI is included at `frontend/index.html`.  It can be served
+as a static file (e.g. via `uvicorn --static-dir frontend` or any web server) and
+provides a form to upload a leads CSV and a button to start the campaign.  For a
+full-featured user interface consider building a Next.js or Create React App project
+as outlined earlier.
 
 2. **Data model & ingestion**
    - Define `Lead` schema: `name`, `email`, `niche`, `industry`, `phone`, `company`, etc.
@@ -128,15 +172,33 @@ Leads Database  /  Campaign Logs  /  Analytics
    ```bash
    pip install -r requirements.txt
    ```
-3. Configure `.env` with SMTP credentials, Ollama endpoint, DB URL, etc.
-4. Run migrations (`alembic` or `django manage.py migrate`).
-5. Start backend server:
+3. Copy `.env.example` to `.env` and supply your own credentials and URLs (including `OLLAMA_MODEL` if you want a model other than `llama2`).
+4. **Install the Ollama CLI** and pull a model (e.g. `ollama pull llama2`):
+   ```bash
+   # ensure ollama is in your PATH
+   ollama pull llama2
+   ```
+   the model name should match `OLLAMA_MODEL` in `ai_engine.py`.
+4.   Configure `.env` (or `config.py`) with SMTP credentials, Ollama endpoint, DB URL, etc.
+5. Run migrations (`alembic` or `django manage.py migrate`) if you have a database.
+6. Start backend server (example):
    ```bash
    uvicorn app.main:app --reload
    ```
-6. Navigate to `frontend/`, install npm packages, then `npm run dev`.
+7. Navigate to `frontend/`, install npm packages, then `npm run dev`.
 
 Refer to each folder's README for more details.
+
+### Running tests
+
+A basic test suite using `pytest` is included. To run the tests:
+
+```bash
+pip install -r requirements.txt
+pytest
+```
+
+The only current test exercises the AI engine logging logic; more can be added as the project grows.
 
 ---
 
@@ -144,9 +206,9 @@ Refer to each folder's README for more details.
 
 This repository currently contains:
 
-- `campaign.py`, `personalization.py`, `smtp_sender.py` – basic template-based mailing
+- `campaign.py`, `ai_engine.py`, `smtp_sender.py` – campaign runner now delegates subject/body creation to an Ollama model
 - `leads.csv` sample file
-- `templates/email_template.txt` with placeholders
+- (legacy) `personalization.py` and `templates/email_template.txt` remain for simple templating, but AI generation is the default
 
 The next steps will expand these modules with AI and web interfaces as outlined above.
 

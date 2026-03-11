@@ -1,7 +1,12 @@
-SMTP_SERVER = "smtp.gmail.com"
-SMTP_PORT = 587
+import os
+from dotenv import load_dotenv
 
-EMAIL_ADDRESS = "rviswa60@gmail.com"
-EMAIL_PASSWORD = "ccqf mzsa mspw dqzo"
+load_dotenv()
 
-DELAY_BETWEEN_EMAILS = 10
+SMTP_SERVER = os.getenv("SMTP_SERVER", "smtp.gmail.com")
+SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
+
+EMAIL_ADDRESS = os.getenv("EMAIL_ADDRESS")
+EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD")
+
+DELAY_BETWEEN_EMAILS = int(os.getenv("DELAY_BETWEEN_EMAILS", "10"))

@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Email Automation UI</title>
+</head>
+<body>
+  <div id="root"></div>
+
+  <!-- React from CDN for quick prototype -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+
+  <script>
+    const { useState } = React;
+    function App() {
+      const [file, setFile] = useState(null);
+      const [message, setMessage] = useState('');
+
+      const upload = async () => {
+        if (!file) return;
+        try {
+          const form = new FormData();
+          form.append('file', file);
+          const res = await axios.post('/api/leads/upload/', form, {
+            headers: {'Content-Type': 'multipart/form-data'}
+          });
+          setMessage(`Created ${res.data.created} leads`);
+        } catch (err) {
+          const detail = err?.response?.data?.error || err.message || 'Upload failed';
+          setMessage(`Upload failed: ${detail}`);
+        }
+      };
+
+      const start = async () => {
+        try {
+          const res = await axios.post('/api/campaign/start/');
+          setMessage(res.data.status);
+        } catch (err) {
+          const detail = err?.response?.data?.error || err.message || 'Failed to start campaign';
+          setMessage(`Start failed: ${detail}`);
+        }
+      };
+
+      return React.createElement('div', null,
+        React.createElement('h1', null, 'Email Automation Dashboard'),
+        React.createElement('input', { type: 'file', onChange: e => setFile(e.target.files[0]) }),
+        React.createElement('button', { onClick: upload }, 'Upload Leads'),
+        React.createElement('button', { onClick: start }, 'Start Campaign'),
+        React.createElement('p', null, message)
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(App));
+  </script>
+</body>
+</html>

@@ -2,8 +2,18 @@ import os
 import re
 import subprocess
 
+try:
+    import requests
+except Exception:
+    requests = None
+
 # name of the ollama model to use (must be installed locally or accessible via ollama)
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama2")
+OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://127.0.0.1:11434").rstrip("/")
+OLLAMA_REQUEST_TIMEOUT_SECONDS = float(os.getenv("OLLAMA_REQUEST_TIMEOUT_SECONDS", "180"))
+OLLAMA_KEEP_ALIVE = os.getenv("OLLAMA_KEEP_ALIVE", "30m")
+OLLAMA_NUM_PREDICT = int(os.getenv("OLLAMA_NUM_PREDICT", "280"))
+OLLAMA_TEMPERATURE = float(os.getenv("OLLAMA_TEMPERATURE", "0.7"))
 MIN_BODY_WORDS = int(os.getenv("MIN_COLD_EMAIL_WORDS", "130"))
 
 
@@ -53,12 +63,38 @@ def _build_prompt(lead: dict) -> str:
 
 
 def _generate_with_ollama(prompt: str) -> tuple[str, str]:
-    """Try ollama run first, then legacy generate command for compatibility."""
+    """Try Ollama HTTP API first, then CLI fallbacks for compatibility."""
+    errors = []
+
+    if requests is not None:
+        try:
+            response = requests.post(
+                f"{OLLAMA_BASE_URL}/api/generate",
+                json={
+                    "model": OLLAMA_MODEL,
+                    "prompt": prompt,
+                    "stream": False,
+                    "keep_alive": OLLAMA_KEEP_ALIVE,
+                    "options": {
+                        "num_predict": OLLAMA_NUM_PREDICT,
+                        "temperature": OLLAMA_TEMPERATURE,
+                    },
+                },
+                timeout=OLLAMA_REQUEST_TIMEOUT_SECONDS,
+            )
+            response.raise_for_status()
+            payload = response.json()
+            generated_text = _strip_ansi(payload.get("response", "")).strip()
+            if generated_text:
+                return generated_text, ""
+            errors.append("ollama http: empty response")
+        except Exception as exc:
+            errors.append(f"ollama http: {exc}")
+
     commands = [
         ["ollama", "run", OLLAMA_MODEL, prompt],
         ["ollama", "generate", OLLAMA_MODEL, "--prompt", prompt],
     ]
-    errors = []
 
     for cmd in commands:
         try:

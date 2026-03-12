@@ -4,6 +4,7 @@ from ai_engine import generate_cold_email
 
 def test_generate_cold_email_logs(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr("ai_engine.requests", None)
 
     class Dummy:
         stdout = (
@@ -34,6 +35,7 @@ def test_generate_cold_email_logs(tmp_path, monkeypatch):
 
 def test_generate_cold_email_uses_detailed_fallback_when_ollama_fails(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr("ai_engine.requests", None)
 
     def fail(*args, **kwargs):
         raise subprocess.CalledProcessError(returncode=1, cmd=args[0], stderr="command failed")
